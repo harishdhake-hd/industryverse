@@ -1,0 +1,181 @@
+// IndustryVerse - Prisma Schema
+// Database: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  ADMIN
+}
+
+enum ProjectStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED
+  COMPLETED
+  REJECTED
+}
+
+model User {
+  id             String           @id @default(cuid())
+  email          String           @unique
+  name           String
+  passwordHash   String
+  role           Role             @default(STUDENT)
+  avatarUrl      String?
+  bio            String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  progress       UserProgress[]
+  submissions    ProjectSubmission[]
+  assistantLogs  AssistantLog[]
+  badges         UserBadge[]
+  activityLogs   ActivityLog[]
+}
+
+model Domain {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String
+  icon        String
+  color       String
+  roles       IndustryRole[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model IndustryRole {
+  id                String    @id @default(cuid())
+  domainId          String
+  domain            Domain    @relation(fields: [domainId], references: [id])
+  title             String
+  slug              String    @unique
+  overview          String    @db.Text
+  dailyResponsibilities Json
+  toolsUsed         Json
+  workflowBreakdown Json
+  requiredSkills    Json
+  careerProgression Json
+  avgSalary         String?
+  experienceLevel   String?
+  modules           Module[]
+  projects          Project[]
+  progress          UserProgress[]
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model Module {
+  id          String       @id @default(cuid())
+  roleId      String
+  role        IndustryRole @relation(fields: [roleId], references: [id])
+  title       String
+  description String       @db.Text
+  content     Json
+  order       Int
+  duration    Int          // minutes
+  progress    UserProgress[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Project {
+  id                  String              @id @default(cuid())
+  roleId              String
+  role                IndustryRole        @relation(fields: [roleId], references: [id])
+  title               String
+  description         String              @db.Text
+  requirementDoc      String              @db.Text
+  implementationPlan  Json
+  deliverablesChecklist Json
+  difficulty          String
+  estimatedHours      Int
+  skills              Json
+  submissions         ProjectSubmission[]
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+}
+
+model ProjectSubmission {
+  id          String        @id @default(cuid())
+  projectId   String
+  project     Project       @relation(fields: [projectId], references: [id])
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  status      ProjectStatus @default(NOT_STARTED)
+  progress    Int           @default(0)
+  notes       String?       @db.Text
+  submittedAt DateTime?
+  reviewedAt  DateTime?
+  feedback    String?       @db.Text
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([projectId, userId])
+}
+
+model UserProgress {
+  id         String       @id @default(cuid())
+  userId     String
+  user       User         @relation(fields: [userId], references: [id])
+  roleId     String?
+  role       IndustryRole? @relation(fields: [roleId], references: [id])
+  moduleId   String?
+  module     Module?      @relation(fields: [moduleId], references: [id])
+  completed  Boolean      @default(false)
+  progress   Int          @default(0)
+  startedAt  DateTime     @default(now())
+  completedAt DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+}
+
+model AssistantLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  context    String?
+  messages   Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Badge {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  description String
+  icon        String
+  criteria    Json
+  userBadges  UserBadge[]
+  createdAt   DateTime    @default(now())
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  badgeId   String
+  badge     Badge    @relation(fields: [badgeId], references: [id])
+  earnedAt  DateTime @default(now())
+
+  @@unique([userId, badgeId])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  entity    String?
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+}
